@@ -1,0 +1,12 @@
+*.log
+.env
+composer.phar
+.DS_Store
+Thumbs.db
+/.idea
+/.vscode
+/public/storage/images/
+/vendor
+/.settings
+/.buildpath
+/.project

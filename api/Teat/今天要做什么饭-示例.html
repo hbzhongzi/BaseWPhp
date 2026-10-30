@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>今天要做什么饭 · 示例原型</title>
+<style>
+  :root {
+    --bg: #fff7ed;
+    --card: #ffffff;
+    --primary: #ff7a45;
+    --primary-2: #ffa940;
+    --accent: #36cfc9;
+    --text: #2b2b2b;
+    --sub: #8c8c8c;
+    --line: #f0e4d8;
+    --shadow: 0 8px 24px rgba(255,122,69,.15);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #fff1e6 0%, #ffe7d1 100%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  /* 手机外框（固定高度，内部滚动） */
+  .phone {
+    width: 100%;
+    max-width: 390px;
+    height: min(820px, 92vh);
+    background: var(--bg);
+    border-radius: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    overflow: hidden;
+    position: relative;
+    border: 8px solid #1f1f1f;
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar {
+    height: 32px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font-size: 12px; color: var(--sub); background: #fff;
+  }
+  .statusbar .dots { letter-spacing: 2px; }
+
+  /* 滚动区：头标随内容一起滑动 */
+  .scroll-area { flex: 1; overflow-y: auto; }
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+    color: #fff; padding: 16px 20px 18px; text-align: center;
+  }
+  .header h1 { margin: 0; font-size: 21px; letter-spacing: 1px; }
+  .header p { margin: 6px 0 0; font-size: 12px; opacity: .92; }
+  .header .logo { font-size: 30px; }
+
+  .screen { padding: 18px 16px 24px; }
+
+  /* 通用卡片 */
+  .card {
+    background: var(--card); border-radius: 18px; padding: 18px;
+    box-shadow: var(--shadow); margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card .tip { color: var(--sub); font-size: 12px; margin: 0 0 14px; }
+
+  /* 分段切换（转盘 / 盲盒） */
+  .segment { display: flex; background: #fff3e9; border-radius: 14px; padding: 4px; margin-bottom: 16px; }
+  .segment button {
+    flex: 1; border: none; background: transparent; padding: 10px; border-radius: 11px;
+    font-size: 14px; font-weight: 700; color: var(--sub); cursor: pointer; transition: .2s;
+  }
+  .segment button.active { background: #fff; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+  /* 转盘 */
+  .wheel-wrap { position: relative; width: 260px; height: 260px; margin: 6px auto 18px; display: none; }
+  .wheel-wrap.show { display: block; }
+  #wheel { width: 260px; height: 260px; border-radius: 50%; display: block;
+           box-shadow: 0 0 0 8px #fff, 0 0 0 12px var(--primary), 0 10px 30px rgba(0,0,0,.12); }
+  .wheel-pointer {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
+    border-top: 26px solid #ff4d4f; z-index: 3; filter: drop-shadow(0 2px 2px rgba(0,0,0,.2));
+  }
+  .wheel-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 64px; height: 64px; border-radius: 50%; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: var(--primary); font-size: 14px; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.18); border: 3px solid var(--primary-2);
+    z-index: 4; user-select: none; text-align: center; line-height: 1.1;
+  }
+  .wheel-center:active { transform: translate(-50%,-50%) scale(.94); }
+
+  /* 盲盒 */
+  .box-area { text-align: center; display: none; }
+  .box-area.show { display: block; }
+  .box {
+    width: 140px; height: 140px; margin: 14px auto 18px; position: relative; cursor: pointer;
+    font-size: 90px; line-height: 140px; transition: transform .2s;
+    filter: drop-shadow(0 10px 16px rgba(0,0,0,.18));
+  }
+  .box.shake { animation: shake .5s ease-in-out 2; }
+  @keyframes shake { 0%,100%{transform:rotate(0);} 25%{transform:rotate(-9deg);} 75%{transform:rotate(9deg);} }
+
+  .btn {
+    display: block; width: 100%; border: none; border-radius: 14px; padding: 14px;
+    font-size: 16px; font-weight: 700; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2)); box-shadow: var(--shadow);
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: #fff; color: var(--primary); border: 2px solid var(--primary); box-shadow: none; }
+
+  .result-banner { margin-top: 14px; text-align: center; font-size: 15px; color: var(--text);
+    background: #fff3e9; border-radius: 12px; padding: 12px; }
+  .result-banner b { color: var(--primary); font-size: 18px; }
+
+  /* 美食图鉴 */
+  .collection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .food-card {
+    background: #fff; border-radius: 14px; padding: 12px 6px; text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,.06); cursor: pointer; transition: .15s; border: 1px solid var(--line);
+  }
+  .food-card:active { transform: scale(.95); }
+  .food-card .emoji { font-size: 34px; }
+  .food-card .name { font-size: 13px; font-weight: 700; margin-top: 4px; }
+  .food-card .cnt { font-size: 11px; color: var(--sub); }
+
+  /* 做法科普 弹层 */
+  .sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 20;
+    display: none; align-items: flex-end; }
+  .sheet-mask.show { display: flex; animation: fade .25s; }
+  .sheet { background: #fff; width: 100%; border-radius: 22px 22px 0 0; padding: 22px 20px 28px;
+    max-height: 82%; overflow-y: auto; animation: slideup .3s; }
+  @keyframes slideup { from{transform:translateY(100%);} to{transform:translateY(0);} }
+  @keyframes fade { from{opacity:0;} to{opacity:1;} }
+  .sheet .close { float: right; font-size: 22px; color: var(--sub); cursor: pointer; line-height: 1; }
+  .sheet .s-emoji { font-size: 56px; text-align: center; }
+  .sheet .s-name { text-align: center; font-size: 22px; font-weight: 800; margin: 6px 0 2px; }
+  .sheet .s-desc { text-align: center; color: var(--sub); font-size: 13px; margin-bottom: 16px; }
+  .sheet .s-block { margin-bottom: 14px; }
+  .sheet .s-block h3 { font-size: 14px; color: var(--primary); margin: 0 0 6px; }
+  .sheet .s-block p { font-size: 13px; line-height: 1.7; margin: 0; color: #555; }
+  .sheet .s-steps { margin: 0; padding-left: 18px; }
+  .sheet .s-steps li { font-size: 13px; line-height: 1.8; color: #555; }
+  .sheet .s-tip { background: #fff7e6; border-left: 3px solid var(--primary-2); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: #7a5b1e; line-height: 1.7; }
+
+  /* ===== 个人中心 ===== */
+  .profile { display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg,#ffd666,#ff9c6e);
+    display: flex; align-items: center; justify-content: center; font-size: 32px; flex: none; }
+  .profile .p-name { font-size: 18px; font-weight: 800; }
+  .profile .p-sub { font-size: 12px; color: var(--sub); margin-top: 3px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 16px; }
+  .stat { flex: 1; background: #fff; border-radius: 16px; padding: 14px 10px; text-align: center;
+    box-shadow: var(--shadow); }
+  .stat .num { font-size: 22px; font-weight: 800; color: var(--primary); }
+  .stat .lbl { font-size: 12px; color: var(--sub); margin-top: 3px; }
+
+  .menu { background: #fff; border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .menu-item { display: flex; align-items: center; padding: 15px 16px; cursor: pointer;
+    border-bottom: 1px solid var(--line); font-size: 15px; }
+  .menu-item:last-child { border-bottom: none; }
+  .menu-item .mi-ic { font-size: 20px; width: 30px; }
+  .menu-item .mi-txt { flex: 1; }
+  .menu-item .mi-arrow { color: var(--sub); font-size: 14px; }
+  .menu-item:active { background: #fff7ef; }
+
+  /* 建议收集 */
+  .fb-type { display: flex; gap: 8px; margin-bottom: 12px; }
+  .fb-type button { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 10px;
+    padding: 9px; font-size: 13px; color: var(--sub); cursor: pointer; }
+  .fb-type button.active { border-color: var(--primary); color: var(--primary); background: #fff3e9; font-weight: 700; }
+  .fb-input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+    font-size: 14px; font-family: inherit; resize: none; min-height: 96px; outline: none; }
+  .fb-input:focus { border-color: var(--primary); }
+  .fb-thanks { display: none; margin-top: 12px; background: #f6ffed; border: 1px solid #b7eb8f;
+    color: #389e0d; border-radius: 10px; padding: 10px 12px; font-size: 13px; text-align: center; }
+  .fb-thanks.show { display: block; }
+
+  /* 奖池设置条 */
+  .pool-bar {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #fff3e9; border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px; font-size: 13px; color: var(--primary); font-weight: 700;
+    cursor: pointer; margin-bottom: 14px;
+  }
+  .pool-bar:active { background: #ffe9d6; }
+
+  /* 奖池列表 + 开关 */
+  .pool-row { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 4px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .pool-row:last-child { border-bottom: none; }
+  .pool-row .pr-name { display: flex; align-items: center; gap: 8px; }
+  .switch { width: 46px; height: 26px; border-radius: 13px; background: #d9d9d9;
+    position: relative; cursor: pointer; transition: .2s; flex: none; }
+  .switch.on { background: var(--primary); }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+    border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .switch.on::after { left: 23px; }
+
+  /* 底部导航 */
+  .tabbar { flex: none; height: 64px; background: #fff; border-top: 1px solid var(--line);
+    display: flex; box-shadow: 0 -4px 14px rgba(0,0,0,.05); }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--sub); font-size: 11px; cursor: pointer; gap: 3px; }
+  .tab .ic { font-size: 22px; }
+  .tab.active { color: var(--primary); font-weight: 700; }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fade .3s; }
+
+  .toast { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.8); color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-size: 13px; opacity: 0; transition: .3s; pointer-events: none; z-index: 30; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .empty { text-align: center; color: var(--sub); font-size: 13px; padding: 30px 0; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar"><span class="time">10:38</span><span class="dots">●●● 5G ▮▮▮</span></div>
+
+  <div class="scroll-area">
+  <div class="header">
+    <div class="logo">🍳</div>
+    <h1>今天要做什么饭</h1>
+    <p>告别选择困难 · 一键决定你的下一餐</p>
+  </div>
+
+  <div class="screen">
+
+    <!-- 抽取页（转盘 + 盲盒 合并） -->
+    <section class="page active" id="page-draw">
+      <div class="card">
+        <h2>🎲 今天吃什么</h2>
+        <p class="tip">选一种方式，让命运决定你的下一餐～</p>
+        <div class="segment">
+          <button class="active" data-mode="wheel">🎡 转 盘</button>
+          <button data-mode="box">🎁 盲 盒</button>
+        </div>
+        <div class="pool-bar" id="openPool">⚙️ 奖池设置 · 已选 <span id="poolCount">12</span>/12 项</div>
+        <div class="wheel-wrap show" id="wheelWrap">
+          <div class="wheel-pointer"></div>
+          <canvas id="wheel" width="520" height="520"></canvas>
+          <div class="wheel-center" id="spinBtn">GO<br>转!</div>
+        </div>
+        <div class="box-area" id="boxArea">
+          <div class="box" id="blindBox">🎁</div>
+          <button class="btn" id="openBoxBtn">开 盲 盒</button>
+        </div>
+        <div class="result-banner" id="wheelResult">等待转运中… 🤞</div>
+      </div>
+    </section>
+
+    <!-- 美食图鉴页 -->
+    <section class="page" id="page-book">
+      <div class="card">
+        <h2>📖 我的美食图鉴</h2>
+        <p class="tip">你抽到过的美食都在这里，点开看看怎么做吧～</p>
+        <div id="collection"><div class="empty">还没有抽到美食，去「抽取」页试试手气吧！</div></div>
+      </div>
+    </section>
+
+    <!-- 个人中心页（原分享页改造） -->
+    <section class="page" id="page-me">
+      <div class="card profile">
+        <div class="avatar">🧑‍🍳</div>
+        <div>
+          <div class="p-name" id="meName">美食萌新</div>
+          <div class="p-sub" id="meSub">今天也要好好吃饭呀</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="num" id="statDraw">0</div><div class="lbl">抽取次数</div></div>
+        <div class="stat"><div class="num" id="statBook">0/12</div><div class="lbl">图鉴收集</div></div>
+      </div>
+
+      <div class="menu">
+        <div class="menu-item" data-go="page-book"><span class="mi-ic">📖</span><span class="mi-txt">我的美食图鉴</span><span class="mi-arrow">›</span></div>
+        <div class="menu-item" id="menuShare"><span class="mi-ic">📤</span><span class="mi-txt">分享小程序</span><span class="mi-arrow">›</span></div>
+        <div class="menu-item" id="menuAbout"><span class="mi-ic">ℹ️</span><span class="mi-txt">关于小程序</span><span class="mi-arrow">›</span></div>
+      </div>
+
+      <!-- 建议收集模块 -->
+      <div class="card" style="margin-top:16px;">
+        <h2>💬 建议收集</h2>
+        <p class="tip">遇到问题或有好点子？随时告诉我们～</p>
+        <div class="fb-type" id="fbType">
+          <button class="active" data-t="功能建议">功能建议</button>
+          <button data-t="Bug反馈">Bug反馈</button>
+          <button data-t="推荐美食">推荐美食</button>
+          <button data-t="其他">其他</button>
+        </div>
+        <textarea class="fb-input" id="fbText" placeholder="请输入你的建议或遇到的问题…"></textarea>
+        <button class="btn" id="fbSubmit" style="margin-top:12px;">提 交 建 议</button>
+        <div class="fb-thanks" id="fbThanks">✅ 已收到你的反馈，感谢支持！</div>
+      </div>
+    </section>
+
+  </div>
+  </div><!-- /scroll-area -->
+
+  <!-- 底部导航 -->
+  <div class="tabbar">
+    <div class="tab active" data-page="page-draw"><span class="ic">🎲</span>抽取</div>
+    <div class="tab" data-page="page-book"><span class="ic">📖</span>图鉴</div>
+    <div class="tab" data-page="page-me"><span class="ic">👤</span>我的</div>
+  </div>
+
+  <!-- 做法科普 弹层 -->
+  <div class="sheet-mask" id="sheetMask">
+    <div class="sheet" id="sheet">
+      <span class="close" id="sheetClose">✕</span>
+      <div class="s-emoji" id="sEmoji">🍜</div>
+      <div class="s-name" id="sName">麻辣烫</div>
+      <div class="s-desc" id="sDesc"></div>
+      <div class="s-block"><h3>📜 起源小知识</h3><p id="sOrigin"></p></div>
+      <div class="s-block"><h3>👩‍🍳 家常做法</h3><ol class="s-steps" id="sSteps"></ol></div>
+      <div class="s-block"><h3>💡 科普小贴士</h3><div class="s-tip" id="sTip"></div></div>
+    </div>
+  </div>
+
+  <!-- 奖池设置 弹层 -->
+  <div class="sheet-mask" id="poolMask">
+    <div class="sheet">
+      <span class="close" id="poolClose">✕</span>
+      <div class="s-name" style="text-align:left;">⚙️ 奖池设置</div>
+      <p class="tip">勾选要参与「转盘 / 盲盒」的美食，点击「确定」后生效。想要系统没有的美食？去「我的 → 建议收集 → 推荐美食」告诉我们～</p>
+      <div id="poolList"></div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn ghost" id="poolAll">全选</button>
+        <button class="btn ghost" id="poolReset">重置</button>
+        <button class="btn" id="poolConfirm">确 定</button>
+      </div>
+      <div style="text-align:center; margin-top:12px;">
+        <span id="poolGoSuggest" style="color:var(--primary); font-size:13px; cursor:pointer;">想要新美食？去推荐 →</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  // ===== 美食数据（含做法科普） =====
+  const FOODS = [
+    { name:"火锅", emoji:"🍲", desc:"约上三五好友，热气腾腾最热闹。",
+      origin:"源于长江沿岸的船工饮食，冬日围炉煮食御寒，后发展为南北方各具特色的火锅文化。",
+      steps:["熬制锅底：清汤用骨汤，麻辣用豆瓣、花椒、牛油炒香","备齐食材：肉片、丸滑、蔬菜、豆制品切配装盘","汤沸下料：先肉后菜，涮至变色即食","蘸料随心：麻酱、蒜泥、油碟按口味调配"],
+      tip:"高温短时涮煮可杀菌，但久煮的汤底嘌呤升高，痛风人群及高尿酸者宜少喝汤、多吃菜。" },
+    { name:"烧烤", emoji:"🍢", desc:"夜宵之王，烤什么都香。",
+      origin:"可追溯至游牧民族与原始烤肉，现代烧烤在炭火与调料加持下成为全民夜宵。",
+      steps:["食材腌制：肉串用酱油、料酒、孜然腌入味","生火预热：炭火烧至无明火、通红为佳","上架翻烤：不断翻面，避免单面焦糊","刷酱撒料：中途刷油酱，出炉撒孜然辣椒面"],
+      tip:"明火直烤易产生苯并芘等致癌物，建议搭配大量蔬菜、避免烤焦，电烤/锡纸包裹更健康。" },
+    { name:"麻辣烫", emoji:"🍜", desc:"一个人也能拥有的小幸福。",
+      origin:"川渝地区的市井小吃，由火锅衍生出'一人一锅'的烫煮形式。",
+      steps:["调底料：麻辣牛油底或骨汤加辣","自选食材：叶菜、菌菇、丸滑、豆制品","下锅烫熟：按耐煮程度先后下料","出锅调味：加麻酱、蒜泥、葱花拌匀"],
+      tip:"自由度高的搭配易做到荤素均衡；注意汤底偏油偏咸，可要求少油少盐、多放蔬菜。" },
+    { name:"寿司", emoji:"🍣", desc:"清爽不油腻，轻食首选。",
+      origin:"源自东南亚保存鱼肉的发酵法，传入日本后演变为醋饭握寿司。",
+      steps:["煮醋饭：米饭拌入寿司醋放凉","处理鱼生：极新鲜鱼贝类去皮去刺切薄片","握制：手蘸水取醋饭，轻压铺鱼生","搭配：蘸少量酱油、佐山葵"],
+      tip:"生食对新鲜度要求极高，孕妇、儿童、免疫力弱者建议选择熟寿司（玉子、灸烧、蔬菜卷）。" },
+    { name:"披萨", emoji:"🍕", desc:"拉丝芝士，快乐加倍。",
+      origin:"意大利那不勒斯的传统 Flatbread，19世纪加入番茄芝士成为经典。",
+      steps:["揉面发酵：高筋粉加酵母揉匀发酵","擀饼抹酱：擀圆饼底，抹番茄酱","铺料：撒马苏里拉芝士与配料","高温烘烤：220℃以上烤至边缘焦脆"],
+      tip:"高温让芝士发生美拉德反应而香浓，但整体热量偏高，可选薄底、多蔬菜、少培根的版本。" },
+    { name:"汉堡", emoji:"🍔", desc:"一口下去，烦恼全无。",
+      origin:"19世纪由德国汉堡港传入美国，演变为夹肉饼的圆面包快餐。",
+      steps:["调肉饼：牛肉末加盐胡椒捏成饼","煎烤肉饼：中大火煎至两面焦香","切配料：生菜、番茄、洋葱洗净切片","组装：面包底+酱+菜+肉饼+面包顶"],
+      tip:"自制可换成全麦面包、鸡胸肉、多放蔬菜，比市售快餐更健康均衡。" },
+    { name:"沙拉", emoji:"🥗", desc:"今日份自律，从一碗菜开始。",
+      origin:"源于地中海饮食，以生食蔬菜为基础的健康餐形式。",
+      steps:["选蔬菜：生菜、苦苣、芝麻菜等洗净","搭配：加番茄、黄瓜、坚果、鸡胸或虾仁","切配装碗：控干水分避免稀释酱汁","调酱：油醋汁（橄榄油+醋+芥末）拌匀"],
+      tip:"生食保留更多维生素，但务必洗净；酱料常是热量陷阱，油醋汁优于奶油酱。" },
+    { name:"牛肉面", emoji:"🍜", desc:"汤浓面劲，元气满满。",
+      origin:"兰州清汤牛肉面与台湾红烧牛肉面各具代表，是国民级面食。",
+      steps:["熬汤：牛骨与香料小火慢炖数小时","烧肉：牛腩加酱油、豆瓣红烧入味","煮面：面条下锅煮至筋道","组合：捞面浇汤，铺肉撒葱辣"],
+      tip:"长时间熬煮释出胶原与风味，选全麦或杂粮面、多加青菜可提升膳食纤维。" },
+    { name:"饺子", emoji:"🥟", desc:"热气腾腾，家的味道。",
+      origin:"中国北方传统面食，春节'更岁交子'的象征，寓意团圆。",
+      steps:["和面醒面：面粉加水揉成光滑面团醒发","调馅：肉菜剁碎加调料顺向搅上劲","擀皮包馅：皮中放馅捏紧花边","煮/蒸/煎：水开下饺，浮起即熟"],
+      tip:"荤素搭配的馅料营养较均衡；全麦皮、多菜少肉可减少热量，煮食比煎炸更清爽。" },
+    { name:"盖浇饭", emoji:"🍚", desc:"一锅出，最快解决一餐。",
+      origin:"中式快餐经典，米饭浇上现炒菜肴，便捷管饱。",
+      steps:["煮饭：米饭蒸熟备用","炒菜/卤：选宫保鸡丁、番茄蛋或红烧类","勾芡收汁：让汤汁裹住食材","浇饭：热菜连汁铺在米饭上"],
+      tip:"一餐同时含主食与菜，注意蔬菜比例偏低，建议搭配一份清炒时蔬更均衡。" },
+    { name:"炒饭", emoji:"🍳", desc:"剩饭变宝藏，简单又满足。",
+      origin:"家常智慧，用隔夜饭快速做出的一道家常主食。",
+      steps:["备料：隔夜饭打散，蛋、葱、配菜切丁","炒蛋：先滑散鸡蛋盛起","炒饭：下饭翻炒至粒粒分开","调味：加酱油、盐，回锅蛋与配料炒匀"],
+      tip:"隔夜饭水分少、粒粒干爽不黏；少油快炒、多配蔬菜鸡蛋，是很好的'清冰箱'健康餐。" },
+    { name:"螺蛳粉", emoji:"🍜", desc:"闻着臭吃着香，真香警告！",
+      origin:"广西柳州特色米粉，以酸笋汤底闻名，近年成为网红美食。",
+      steps:["泡粉：干米粉提前泡软煮熟","熬汤：螺蛳与酸笋、香料熬制汤底","备料：炸腐竹、花生、酸豆角、木耳","组合：粉入碗，浇汤放料，淋辣油"],
+      tip:"独特的'臭'味来自酸笋发酵产生的硫化物，本身无害；汤底偏油咸，适量享用即可。" },
+  ];
+
+  const COLORS = ["#ff7a45","#ffa940","#ffc53d","#ff9c6e","#ff85c0","#b37feb",
+                  "#36cfc9","#5cdbd3","#95de64","#ffd666","#ffbb96","#ffadd2"];
+
+  const N = FOODS.length;
+  const history = [];          // 抽取顺序
+  const book = new Map();      // 图鉴：name -> {food, count}
+  let drawCount = 0;
+  let fbType = "功能建议";
+  let enabled = new Set(FOODS.map(f => f.name));   // 奖池（默认全选，点确定后生效）
+  function activeFoods(){ return FOODS.filter(f => enabled.has(f.name)); }
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1600);
+  }
+  function onDrawn(food){
+    drawCount++;
+    history.unshift(food.name);
+    if(history.length > 12) history.pop();
+    book.set(food.name, { food, count: (book.get(food.name)?.count||0)+1 });
+    renderBook(); renderMe();
+  }
+
+  // ===== 标签切换 =====
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.page).classList.add('active');
+      if(tab.dataset.page === 'page-me') renderMe();
+    });
+  });
+
+  // ===== 抽取方式切换 =====
+  document.querySelectorAll('.segment button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.segment button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      document.getElementById('wheelWrap').classList.toggle('show', mode==='wheel');
+      document.getElementById('boxArea').classList.toggle('show', mode==='box');
+      document.getElementById('wheelResult').innerHTML = '等待转运中… 🤞';
+    });
+  });
+
+  // ===== 转盘 =====
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  let rotation = 0, spinning = false;
+  function drawWheel(){
+    const foods = activeFoods();
+    const m = foods.length;
+    const r = canvas.width / 2;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(m === 0){
+      ctx.save(); ctx.translate(r,r);
+      ctx.fillStyle = "#eee"; ctx.beginPath(); ctx.arc(0,0,r-6,0,2*Math.PI); ctx.fill();
+      ctx.fillStyle = "#bbb"; ctx.font = "bold 24px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("请在奖池设置中", 0, -8); ctx.fillText("至少选择一项", 0, 24);
+      ctx.restore(); return;
+    }
+    const seg = 2 * Math.PI / m;
+    ctx.save(); ctx.translate(r, r); ctx.rotate(rotation);
+    for(let i=0;i<m;i++){
+      const start = i*seg, end = start+seg;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r-6,start,end); ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+      ctx.save(); ctx.rotate(start + seg/2); ctx.textAlign = "right";
+      ctx.fillStyle = "#fff"; ctx.font = "bold 26px sans-serif";
+      ctx.fillText(foods[i].emoji + " " + foods[i].name, r-26, 10);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  drawWheel();
+  document.getElementById('spinBtn').addEventListener('click', () => {
+    if(spinning) return;
+    const foods = activeFoods();
+    if(foods.length === 0){ toast("奖池为空，请先设置"); return; }
+    spinning = true;
+    const m = foods.length, seg = 2 * Math.PI / m;
+    const idx = Math.floor(Math.random()*m);
+    const target = 1.5*Math.PI - (idx*seg + seg/2);
+    let delta = (target - rotation) % (2*Math.PI);
+    if(delta < 0) delta += 2*Math.PI;
+    const total = 5*2*Math.PI + delta;
+    const dur = 3200, startT = performance.now(), startRot = rotation;
+    function animate(now){
+      const p = Math.min((now-startT)/dur, 1);
+      const ease = 1 - Math.pow(1-p, 3);
+      rotation = startRot + total*ease; drawWheel();
+      if(p < 1) requestAnimationFrame(animate);
+      else {
+        spinning = false;
+        const food = foods[idx];
+        document.getElementById('wheelResult').innerHTML = `转盘说：今天吃 <b>${food.emoji} ${food.name}</b>！`;
+        onDrawn(food); toast("🎉 抽中：" + food.name);
+      }
+    }
+    requestAnimationFrame(animate);
+  });
+
+  // ===== 盲盒 =====
+  const box = document.getElementById('blindBox');
+  document.getElementById('openBoxBtn').addEventListener('click', () => {
+    if(box.classList.contains('shake')) return;
+    const foods = activeFoods();
+    if(foods.length === 0){ toast("奖池为空，请先设置"); return; }
+    box.classList.add('shake');
+    setTimeout(() => {
+      const food = foods[Math.floor(Math.random()*foods.length)];
+      box.textContent = "📦";
+      document.getElementById('wheelResult').innerHTML = `盲盒开出：今天吃 <b>${food.emoji} ${food.name}</b>！`;
+      box.classList.remove('shake');
+      onDrawn(food); toast("🎁 开出：" + food.name);
+    }, 1000);
+  });
+  box.addEventListener('click', () => document.getElementById('openBoxBtn').click());
+
+  // ===== 奖池设置（草稿 + 确定生效） =====
+  let draft = new Set();
+  function renderPoolList(){
+    const el = document.getElementById('poolList');
+    el.innerHTML = FOODS.map(f => `
+      <div class="pool-row">
+        <span class="pr-name">${f.emoji} ${f.name}</span>
+        <span class="switch ${draft.has(f.name)?'on':''}" data-name="${f.name}"></span>
+      </div>`).join('');
+    el.querySelectorAll('.switch').forEach(sw => {
+      sw.addEventListener('click', () => {
+        const name = sw.dataset.name;
+        if(draft.has(name)) draft.delete(name); else draft.add(name);
+        sw.classList.toggle('on');
+      });
+    });
+  }
+  function updatePoolCount(){
+    document.getElementById('poolCount').textContent = enabled.size;
+  }
+  document.getElementById('openPool').addEventListener('click', () => {
+    draft = new Set(enabled);           // 打开时快照当前奖池
+    renderPoolList();
+    document.getElementById('poolMask').classList.add('show');
+  });
+  document.getElementById('poolClose').addEventListener('click', () => document.getElementById('poolMask').classList.remove('show'));
+  document.getElementById('poolMask').addEventListener('click', e => { if(e.target.id==='poolMask') e.currentTarget.classList.remove('show'); });
+  document.getElementById('poolAll').addEventListener('click', () => { draft = new Set(FOODS.map(f=>f.name)); renderPoolList(); });
+  document.getElementById('poolReset').addEventListener('click', () => { draft = new Set(FOODS.map(f=>f.name)); renderPoolList(); });
+  document.getElementById('poolConfirm').addEventListener('click', () => {
+    if(draft.size === 0){ toast("至少选择一项哦"); return; }
+    enabled = new Set(draft);
+    updatePoolCount(); drawWheel();
+    document.getElementById('poolMask').classList.remove('show');
+    toast("✅ 奖池已更新（" + enabled.size + " 项）");
+  });
+  document.getElementById('poolGoSuggest').addEventListener('click', () => {
+    document.getElementById('poolMask').classList.remove('show');
+    document.querySelector('.tab[data-page="page-me"]').click();
+    setFbType('推荐美食');
+    toast("在「推荐美食」里写下你想加的菜吧～");
+  });
+
+  // ===== 美食图鉴 =====
+  function renderBook(){
+    const el = document.getElementById('collection');
+    if(book.size === 0){ el.innerHTML = '<div class="empty">还没有抽到美食，去「抽取」页试试手气吧！</div>'; return; }
+    let html = '<div class="collection-grid">';
+    book.forEach(({food, count}) => {
+      html += `<div class="food-card" data-name="${food.name}">
+                 <div class="emoji">${food.emoji}</div>
+                 <div class="name">${food.name}</div>
+                 <div class="cnt">抽到 ${count} 次 · 看做法</div></div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.food-card').forEach(c => c.addEventListener('click', () => openSheet(c.dataset.name)));
+  }
+
+  // ===== 做法科普 弹层 =====
+  function openSheet(name){
+    const f = FOODS.find(x=>x.name===name); if(!f) return;
+    document.getElementById('sEmoji').textContent = f.emoji;
+    document.getElementById('sName').textContent = f.name;
+    document.getElementById('sDesc').textContent = f.desc;
+    document.getElementById('sOrigin').textContent = f.origin;
+    document.getElementById('sSteps').innerHTML = f.steps.map(s=>`<li>${s}</li>`).join('');
+    document.getElementById('sTip').textContent = f.tip;
+    document.getElementById('sheetMask').classList.add('show');
+  }
+  document.getElementById('sheetClose').addEventListener('click', ()=>document.getElementById('sheetMask').classList.remove('show'));
+  document.getElementById('sheetMask').addEventListener('click', e => { if(e.target.id==='sheetMask') e.currentTarget.classList.remove('show'); });
+
+  // ===== 个人中心 =====
+  function renderMe(){
+    document.getElementById('statDraw').textContent = drawCount;
+    document.getElementById('statBook').textContent = book.size + '/' + N;
+    const n = drawCount;
+    let title = "美食萌新", sub = "今天也要好好吃饭呀";
+    if(n >= 30){ title = "美食宗师"; sub = "没有你没吃过的菜系"; }
+    else if(n >= 15){ title = "美食达人"; sub = "选择困难？不存在的"; }
+    else if(n >= 5){ title = "美食探索家"; sub = "吃得越来越明白啦"; }
+    document.getElementById('meName').textContent = title;
+    document.getElementById('meSub').textContent = sub;
+  }
+  // 菜单跳转
+  document.querySelector('.menu-item[data-go]').addEventListener('click', e => {
+    const page = e.currentTarget.dataset.go;
+    document.querySelector(`.tab[data-page="${page}"]`).click();
+  });
+  document.getElementById('menuShare').addEventListener('click', ()=> toast("点击右上角 ··· 分享给好友"));
+  document.getElementById('menuAbout').addEventListener('click', ()=> toast("今天要做什么饭 v1.0 · 趣味餐饮决策工具"));
+
+  // ===== 建议收集 =====
+  function setFbType(type){
+    document.querySelectorAll('#fbType button').forEach(x => {
+      const on = x.dataset.t === type;
+      x.classList.toggle('active', on);
+      if(on) fbType = type;
+    });
+  }
+  document.querySelectorAll('#fbType button').forEach(b => {
+    b.addEventListener('click', () => setFbType(b.dataset.t));
+  });
+  document.getElementById('fbSubmit').addEventListener('click', () => {
+    const txt = document.getElementById('fbText').value.trim();
+    if(!txt){ toast("请先填写建议内容哦"); return; }
+    // 模拟提交：本地存储（实际小程序可调用云函数/反馈接口）
+    try {
+      const list = JSON.parse(localStorage.getItem('wmf_suggestions') || '[]');
+      list.push({ type: fbType, text: txt, time: new Date().toISOString() });
+      localStorage.setItem('wmf_suggestions', JSON.stringify(list));
+    } catch(e){}
+    document.getElementById('fbThanks').classList.add('show');
+    document.getElementById('fbText').value = '';
+    setTimeout(()=>document.getElementById('fbThanks').classList.remove('show'), 2500);
+    toast("感谢反馈 💛");
+  });
+
+  renderBook(); renderMe();
+</script>
+</body>
+</html>
